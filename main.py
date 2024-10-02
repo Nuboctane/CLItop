@@ -42,10 +42,12 @@ class CliDow:
                 if row < rows - 1:
                     print("-" * (34 * max_columns))
 
-            print(f"\n{Fore.WHITE} usage{Fore.WHITE}| {Fore.GREEN}open {Fore.WHITE}<app_nmbr> | {Fore.YELLOW}find {Fore.WHITE}<term> | {Fore.BLUE}add {Fore.WHITE}url <url> | {Fore.BLUE}add {Fore.WHITE}exe <.exe path> | {Fore.RED}remove {Fore.WHITE}<app_nmbr> | {Fore.YELLOW}path {Fore.WHITE}<app_nmbr> | {Fore.CYAN}rename {Fore.WHITE}<app_nmbr> <new_name> | {Fore.CYAN}rename -f {Fore.WHITE}<app_nmbr> <new_name.filetype> | {Fore.MAGENTA}help {Fore.WHITE}for instructions on all functionality\n")
+            print(f"\n{Fore.WHITE}usage{Fore.WHITE}: {Fore.GREEN}open {Fore.WHITE}<app_nmbr> | {Fore.GREEN}open {Fore.WHITE}<app_str> | {Fore.YELLOW}find {Fore.WHITE}<term> | {Fore.BLUE}add {Fore.WHITE}url <url> | {Fore.BLUE}add {Fore.WHITE}exe <.exe path> | {Fore.RED}remove {Fore.WHITE}<app_nmbr> | {Fore.YELLOW}path {Fore.WHITE}<app_nmbr> | {Fore.CYAN}rename {Fore.WHITE}<app_nmbr> <new_name> | {Fore.MAGENTA}help {Fore.WHITE}for instructions on all functionality\n")
             command = input(f"{Fore.MAGENTA}CLIdow: {Fore.CYAN}").strip().split(maxsplit=2)
 
             if not command:
+                print(f"{Fore.RED}No command entered. Please try again.{Style.RESET_ALL}")
+                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
                 continue
 
             action = command[0].lower()
@@ -66,15 +68,13 @@ class CliDow:
             elif action == 'path' and len(command) > 1:
                 self.show_path(command[1])
             elif action == 'rename' and len(command) > 2:
-                if command[1] == '-f':
-                    self.rename_app_full(command[2], command[3])
-                else:
-                    self.rename_app(command[1], command[2])
+                self.rename_app(command[1], command[2])
                 applications = self.get_applications()
             elif action == 'help':
                 self.show_help()
             else:
                 print(f"{Fore.RED}Invalid command{Style.RESET_ALL}")
+                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
 
     def get_applications(self):
         applications = []
@@ -94,9 +94,11 @@ class CliDow:
                 app_path = os.path.join(self.apps_dir, matches[0])
             else:
                 print(f"{Fore.RED}No application found matching '{app_identifier}'{Style.RESET_ALL}")
+                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
                 return
         except IndexError:
             print(f"{Fore.RED}Invalid application number{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
             return
 
         if app_path.endswith('.url') or app_path.endswith('.lnk'):
@@ -112,6 +114,7 @@ class CliDow:
     def add_exe(self, exe_path):
         if not os.path.isfile(exe_path) or not exe_path.endswith('.exe'):
             print(f"{Fore.RED}Invalid .exe path{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
             return
         shortcut_path = os.path.join(self.apps_dir, os.path.basename(exe_path) + '.lnk')
         shell = Dispatch('WScript.Shell')
@@ -122,6 +125,7 @@ class CliDow:
     def add_url(self, url):
         if not url.startswith('http://') and not url.startswith('https://'):
             print(f"{Fore.RED}Invalid URL{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
             return
         url_path = os.path.join(self.apps_dir, url.split('//')[1].replace('/', '_') + '.url')
         with open(url_path, 'w') as url_file:
@@ -134,6 +138,7 @@ class CliDow:
             os.remove(app_path)
         except (IndexError, ValueError, OSError):
             print(f"{Fore.RED}Invalid application number or unable to remove{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
 
     def show_path(self, app_number):
         try:
@@ -143,6 +148,7 @@ class CliDow:
             input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
         except (IndexError, ValueError):
             print(f"{Fore.RED}Invalid application number{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
 
     def rename_app(self, app_number, new_name):
         try:
@@ -153,27 +159,19 @@ class CliDow:
             os.rename(old_path, new_path)
         except (IndexError, ValueError, OSError):
             print(f"{Fore.RED}Invalid application number or unable to rename{Style.RESET_ALL}")
-
-    def rename_app_full(self, app_number, new_name):
-        try:
-            app_index = int(app_number) - 1
-            old_path = os.path.join(self.apps_dir, self.applications[app_index])
-            new_path = os.path.join(self.apps_dir, new_name)
-            os.rename(old_path, new_path)
-        except (IndexError, ValueError, OSError):
-            print(f"{Fore.RED}Invalid application number or unable to rename{Style.RESET_ALL}")
+            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
 
     def show_help(self):
         help_message = f"""
 {Fore.MAGENTA}CLIdow Help{Style.RESET_ALL}
 {Fore.GREEN}open <app_nmbr>{Style.RESET_ALL}  - Open the application with the given number.
+{Fore.GREEN}open <app_str>{Style.RESET_ALL}  - Open the application with the closest match to the given term.
 {Fore.YELLOW}find <term>{Style.RESET_ALL}    - Find applications that match the given term.
 {Fore.BLUE}add url <url>{Style.RESET_ALL}   - Add a new application from the given URL.
 {Fore.BLUE}add exe <.exe path>{Style.RESET_ALL} - Add a new application from the given .exe path.
 {Fore.RED}remove <app_nmbr>{Style.RESET_ALL} - Remove the application with the given number.
 {Fore.YELLOW}path <app_nmbr>{Style.RESET_ALL} - Show the full path of the application with the given number.
 {Fore.CYAN}rename <app_nmbr> <new_name>{Style.RESET_ALL} - Rename the application with the given number, keeping the file type intact.
-{Fore.CYAN}rename -f <app_nmbr> <new_name.filetype>{Style.RESET_ALL} - Rename the application with the given number, changing the file type.
 {Fore.MAGENTA}help{Style.RESET_ALL}          - Show this help message.
 """
         print(help_message)
