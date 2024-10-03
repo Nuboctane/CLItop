@@ -1,181 +1,304 @@
-# cli application
-
 import sys
 import os
-import shutil
-import subprocess
-from colorama import Fore, Style
-import winshell
-from win32com.client import Dispatch
-from difflib import get_close_matches
+import curses
 
-class CliDow:
+ascii_art = {
+    "A": [
+        "   A  ",
+        "  A A ",
+        " AAAAA",
+        " A   A",
+        " A   A"
+    ],
+    "B": [
+        " BBBB ",
+        " B   B",
+        " BBBB ",
+        " B   B",
+        " BBBB "
+    ],
+    "C": [
+        "  CCC ",
+        " C   C",
+        " C    ",
+        " C   C",
+        "  CCC "
+    ],
+    "D": [
+        " DDDD ",
+        " D   D",
+        " D   D",
+        " D   D",
+        " DDDD "
+    ],
+    "E": [
+        " EEEEE",
+        " E    ",
+        " EEE  ",
+        " E    ",
+        " EEEEE"
+    ],
+    "F": [
+        " FFFFF",
+        " F    ",
+        " FFF  ",
+        " F    ",
+        " F    "
+    ],
+    "G": [
+        "  GGG ",
+        " G    ",
+        " G  GG",
+        " G   G",
+        "  GGG "
+    ],
+    "H": [
+        " H   H",
+        " H   H",
+        " HHHHH",
+        " H   H",
+        " H   H"
+    ],
+    "I": [
+        " IIIII",
+        "   I  ",
+        "   I  ",
+        "   I  ",
+        " IIIII"
+    ],
+    "J": [
+        " JJJJJ",
+        "     J",
+        "     J",
+        " J   J",
+        "  JJJ "
+    ],
+    "K": [
+        " K   K",
+        " K  K ",
+        " KKK  ",
+        " K  K ",
+        " K   K"
+    ],
+    "L": [
+        " L    ",
+        " L    ",
+        " L    ",
+        " L    ",
+        " LLLLL"
+    ],
+    "M": [
+        " M   M",
+        " MM MM",
+        " M M M",
+        " M   M",
+        " M   M"
+    ],
+    "N": [
+        " N   N",
+        " NN  N",
+        " N N N",
+        " N  NN",
+        " N   N"
+    ],
+    "O": [
+        "  OOO ",
+        " O   O",
+        " O   O",
+        " O   O",
+        "  OOO "
+    ],
+    "P": [
+        " PPPP ",
+        " P   P",
+        " PPPP ",
+        " P    ",
+        " P    "
+    ],
+    "Q": [
+        "  QQQ ",
+        " Q   Q",
+        " Q   Q",
+        " Q  QQ",
+        "  QQQQ"
+    ],
+    "R": [
+        " RRRR ",
+        " R   R",
+        " RRRR ",
+        " R  R ",
+        " R   R"
+    ],
+    "S": [
+        "  SSS ",
+        " S    ",
+        "  SSS ",
+        "     S",
+        "  SSS "
+    ],
+    "T": [
+        " TTTTT",
+        "   T  ",
+        "   T  ",
+        "   T  ",
+        "   T  "
+    ],
+    "U": [
+        " U   U",
+        " U   U",
+        " U   U",
+        " U   U",
+        "  UUU "
+    ],
+    "V": [
+        " V   V",
+        " V   V",
+        " V   V",
+        "  V V ",
+        "   V  "
+    ],
+    "W": [
+        " W   W",
+        " W   W",
+        " W W W",
+        " WW WW",
+        " W   W"
+    ],
+    "X": [
+        " X   X",
+        "  X X ",
+        "   X  ",
+        "  X X ",
+        " X   X"
+    ],
+    "Y": [
+        " Y   Y",
+        "  Y Y ",
+        "   Y  ",
+        "   Y  ",
+        "   Y  "
+    ],
+    "Z": [
+        " ZZZZZ",
+        "    Z ",
+        "   Z  ",
+        "  Z   ",
+        " ZZZZZ"
+    ]
+}
+
+class CLItop:
     def __init__(self, args):
         self.args = args
-        self.apps_dir = os.path.expanduser("~/cli_apps")
-        self.applications = self.get_applications()
-        self.cliBuild(self.applications)
+        self.max_y = 0
+        self.max_x = 0
+        self.selected_idx = -1  # Track the currently selected index
+        curses.wrapper(self.main)  # Wrap curses
 
-    def cliBuild(self, applications):
+    def main(self, stdscr):
+        curses.curs_set(0)
+        curses.start_color()
+        
+        # Initialize colors
+        self.initialize_colors()
+        
+        items = self.get_desktop_items()
+        if not items:
+            stdscr.addstr(0, 0, "No items found on the desktop.")
+            stdscr.refresh()
+            stdscr.getch()
+            return
+
+        selected_idx = 0
         while True:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            terminal_width = shutil.get_terminal_size().columns
-            max_columns = max(1, terminal_width // 34)
-            total_apps = len(applications)
-            max_rows = (total_apps + max_columns - 1) // max_columns
-            rows = min(max_rows, (total_apps + max_columns - 1) // max_columns)
+            self.draw_icons(stdscr, items, selected_idx)
+            
+            key = stdscr.getch()
+            if key == curses.KEY_RIGHT and selected_idx < len(items) - 1:
+                selected_idx += 1
+            elif key == curses.KEY_LEFT and selected_idx > 0:
+                selected_idx -= 1
+            elif key == curses.KEY_DOWN:
+                selected_idx += self.cols
+                if selected_idx >= len(items):
+                    selected_idx -= self.cols
+            elif key == curses.KEY_UP:
+                selected_idx -= self.cols
+                if selected_idx < 0:
+                    selected_idx += self.cols
+            elif key == ord('\n'):
+                os.startfile(os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', items[selected_idx]))
+            elif key == ord('q'):  # Add an option to quit
+                break
 
-            color_map = {chr(i): color for i, color in zip(range(65, 91), [Fore.RED, Fore.GREEN, Fore.WHITE, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE] * 4)}
+    def get_desktop_items(self):
+        desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+        return os.listdir(desktop_path)
 
-            for row in range(rows):
-                line = ""
-                for col in range(max_columns):
-                    index = row * max_columns + col
-                    if index < total_apps:
-                        app = applications[index]
-                        if len(app) > 20:
-                            name, ext = os.path.splitext(app)
-                            app = name[:16] + "... " + ext
-                        color = color_map.get(app[0].upper(), Fore.RESET)
-                        line += f"{Fore.YELLOW}[{index + 1:2}]: {color}{app:<30}{Style.RESET_ALL}"
-                print(line)
-                if row < rows - 1:
-                    print("-" * (34 * max_columns))
+    def draw_icon(self, stdscr, icon_ascii, y, x, name, is_selected):
+        # Draw the ASCII icon without highlight
+        for row in range(len(icon_ascii)):
+            for col in range(len(icon_ascii[row])):
+                char = icon_ascii[row][col]
+                if char != ' ':
+                    color_pair = (ord(char) - ord('A') + 2) % 8 + 1  # Cycle through color pairs 1-8
+                    stdscr.attron(curses.color_pair(color_pair))
+                    stdscr.addstr(y + row, x + col, char)
+                    stdscr.attroff(curses.color_pair(color_pair))
+                else:
+                    stdscr.addstr(y + row, x + col, char)
+        
+        # Ensure the name has at least one space at the start or end
+        display_name = f" {name[:8]} " if len(name) > 8 else f" {name} "
+        
+        # Highlight the name if selected
+        if is_selected:
+            stdscr.attron(curses.color_pair(1))  # Highlight color
+            stdscr.addstr(y + len(icon_ascii) + 1, x, display_name)
+            stdscr.attroff(curses.color_pair(1))
+        else:
+            stdscr.addstr(y + len(icon_ascii) + 1, x, display_name)
 
-            print(f"\n{Fore.WHITE}usage{Fore.WHITE}: {Fore.GREEN}open {Fore.WHITE}<app_nmbr> | {Fore.GREEN}open {Fore.WHITE}<app_str> | {Fore.YELLOW}find {Fore.WHITE}<term> | {Fore.BLUE}add {Fore.WHITE}url <url> | {Fore.BLUE}add {Fore.WHITE}exe <.exe path> | {Fore.RED}remove {Fore.WHITE}<app_nmbr> | {Fore.YELLOW}path {Fore.WHITE}<app_nmbr> | {Fore.CYAN}rename {Fore.WHITE}<app_nmbr> <new_name> | {Fore.MAGENTA}help {Fore.WHITE}for instructions on all functionality\n")
-            command = input(f"{Fore.MAGENTA}CLIdow: {Fore.CYAN}").strip().split(maxsplit=2)
+    def generate_ascii_icon(self, letter):
+        # Use the predefined ascii_art dictionary
+        return ascii_art.get(letter, ["     ", "     ", "     ", "     ", "     "])
 
-            if not command:
-                print(f"{Fore.RED}No command entered. Please try again.{Style.RESET_ALL}")
-                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-                continue
+    def draw_icons(self, stdscr, items, selected_idx):
+        stdscr.clear()
+        self.max_y, self.max_x = stdscr.getmaxyx()
 
-            action = command[0].lower()
-            if action == 'open' and len(command) > 1:
-                self.open_app(command[1])
-            elif action == 'find':
-                term = command[1] if len(command) > 1 else ""
-                applications = self.find_apps(term)
-            elif action == 'add' and len(command) > 2:
-                if command[1].lower() == 'exe':
-                    self.add_exe(command[2])
-                elif command[1].lower() == 'url':
-                    self.add_url(command[2])
-                applications = self.get_applications()
-            elif action == 'remove' and len(command) > 1:
-                self.remove_app(command[1])
-                applications = self.get_applications()
-            elif action == 'path' and len(command) > 1:
-                self.show_path(command[1])
-            elif action == 'rename' and len(command) > 2:
-                self.rename_app(command[1], command[2])
-                applications = self.get_applications()
-            elif action == 'help':
-                self.show_help()
-            else:
-                print(f"{Fore.RED}Invalid command{Style.RESET_ALL}")
-                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-
-    def get_applications(self):
-        applications = []
-        for root, _, files in os.walk(self.apps_dir):
-            for file in files:
-                if os.access(os.path.join(root, file), os.X_OK) or file.endswith(('.exe', '.lnk', '.url')):
-                    applications.append(file)
-        return applications
-
-    def open_app(self, app_identifier):
-        try:
-            app_index = int(app_identifier) - 1
-            app_path = os.path.join(self.apps_dir, self.applications[app_index])
-        except ValueError:
-            matches = get_close_matches(app_identifier, self.applications, n=1, cutoff=0.1)
-            if matches:
-                app_path = os.path.join(self.apps_dir, matches[0])
-            else:
-                print(f"{Fore.RED}No application found matching '{app_identifier}'{Style.RESET_ALL}")
-                input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-                return
-        except IndexError:
-            print(f"{Fore.RED}Invalid application number{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
+        if self.max_x < 10 or self.max_y < 7:  # Adjusted for extra space
+            stdscr.addstr(0, 0, "Window size is too small.")
+            stdscr.refresh()
+            stdscr.getch()
             return
 
-        if app_path.endswith('.url') or app_path.endswith('.lnk'):
-            os.startfile(app_path)
-        elif app_path.endswith('.exe'):
-            subprocess.Popen(app_path)
+        icon_width = 10
+        icon_height = 7  # Adjusted for extra space
+        self.cols = self.max_x // icon_width
 
-    def find_apps(self, term):
-        if term:
-            return [app for app in self.applications if term.lower() in app.lower()]
-        return self.get_applications()
+        for idx, item in enumerate(items):
+            y = (idx // self.cols) * icon_height
+            x = (idx % self.cols) * icon_width
 
-    def add_exe(self, exe_path):
-        if not os.path.isfile(exe_path) or not exe_path.endswith('.exe'):
-            print(f"{Fore.RED}Invalid .exe path{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-            return
-        shortcut_path = os.path.join(self.apps_dir, os.path.basename(exe_path) + '.lnk')
-        shell = Dispatch('WScript.Shell')
-        shortcut = shell.CreateShortCut(shortcut_path)
-        shortcut.Targetpath = exe_path
-        shortcut.save()
+            letter = item[0].upper()  # Get the first letter of the item
+            icon_ascii = self.generate_ascii_icon(letter)  # Generate ASCII art for the letter
+            
+            is_selected = (idx == selected_idx)
+            self.draw_icon(stdscr, icon_ascii, y, x, item, is_selected)  # Draw the icon and name
 
-    def add_url(self, url):
-        if not url.startswith('http://') and not url.startswith('https://'):
-            print(f"{Fore.RED}Invalid URL{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-            return
-        url_path = os.path.join(self.apps_dir, url.split('//')[1].replace('/', '_') + '.url')
-        with open(url_path, 'w') as url_file:
-            url_file.write(f"[InternetShortcut]\nURL={url}\n")
+        stdscr.refresh()
 
-    def remove_app(self, app_number):
-        try:
-            app_index = int(app_number) - 1
-            app_path = os.path.join(self.apps_dir, self.applications[app_index])
-            os.remove(app_path)
-        except (IndexError, ValueError, OSError):
-            print(f"{Fore.RED}Invalid application number or unable to remove{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
+    def initialize_colors(self):
+        # Add different color mappings using curses init_color and init_pair
+        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)  # Highlight color
+        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(4, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        curses.init_pair(6, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.init_pair(7, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
-    def show_path(self, app_number):
-        try:
-            app_index = int(app_number) - 1
-            app_path = os.path.join(self.apps_dir, self.applications[app_index])
-            print(f"{Fore.GREEN}Path: {app_path}{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-        except (IndexError, ValueError):
-            print(f"{Fore.RED}Invalid application number{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-
-    def rename_app(self, app_number, new_name):
-        try:
-            app_index = int(app_number) - 1
-            old_path = os.path.join(self.apps_dir, self.applications[app_index])
-            name, ext = os.path.splitext(old_path)
-            new_path = os.path.join(self.apps_dir, new_name + ext)
-            os.rename(old_path, new_path)
-        except (IndexError, ValueError, OSError):
-            print(f"{Fore.RED}Invalid application number or unable to rename{Style.RESET_ALL}")
-            input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-
-    def show_help(self):
-        help_message = f"""
-{Fore.MAGENTA}CLIdow Help{Style.RESET_ALL}
-{Fore.GREEN}open <app_nmbr>{Style.RESET_ALL}  - Open the application with the given number.
-{Fore.GREEN}open <app_str>{Style.RESET_ALL}  - Open the application with the closest match to the given term.
-{Fore.YELLOW}find <term>{Style.RESET_ALL}    - Find applications that match the given term.
-{Fore.BLUE}add url <url>{Style.RESET_ALL}   - Add a new application from the given URL.
-{Fore.BLUE}add exe <.exe path>{Style.RESET_ALL} - Add a new application from the given .exe path.
-{Fore.RED}remove <app_nmbr>{Style.RESET_ALL} - Remove the application with the given number.
-{Fore.YELLOW}path <app_nmbr>{Style.RESET_ALL} - Show the full path of the application with the given number.
-{Fore.CYAN}rename <app_nmbr> <new_name>{Style.RESET_ALL} - Rename the application with the given number, keeping the file type intact.
-{Fore.MAGENTA}help{Style.RESET_ALL}          - Show this help message.
-"""
-        print(help_message)
-        input(f"{Fore.MAGENTA}Press Enter to continue...{Style.RESET_ALL}")
-
-#run Clidow
-CliDow(sys.argv)
+if __name__ == "__main__":
+    CLItop(sys.argv)
