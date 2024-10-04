@@ -193,6 +193,7 @@ class CLItop:
         self.max_y = 0
         self.max_x = 0
         self.selected_idx = -1  # Track the currently selected index
+        self.desktop_path = self.get_desktop_path()  # Initialize the desktop path
         curses.wrapper(self.main)  # Wrap curses
 
     def main(self, stdscr):
@@ -227,13 +228,20 @@ class CLItop:
                 if selected_idx < 0:
                     selected_idx += self.cols
             elif key == ord('\n'):
-                os.startfile(os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', items[selected_idx]))
+                os.startfile(os.path.join(self.desktop_path, items[selected_idx]))
             elif key == ord('q'):  # Add an option to quit
                 break
 
+    def get_desktop_path(self):
+        desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Bureaublad')
+        if not os.path.exists(desktop_path):
+            desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+        if not os.path.exists(desktop_path):
+            desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'OneDrive', 'Bureaublad')
+        return desktop_path
+
     def get_desktop_items(self):
-        desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
-        return os.listdir(desktop_path)
+        return os.listdir(self.desktop_path)
 
     def draw_icon(self, stdscr, icon_ascii, y, x, name, is_selected):
         # Draw the ASCII icon without highlight
